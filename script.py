@@ -1,31 +1,54 @@
-import requests 
+import requests
 from bs4 import BeautifulSoup
-import pprint
 
-url = "https://books.toscrape.com/"
+base_url = "https://books.toscrape.com/"
 
-response  = requests.get(url)
+# Effectuer une requête pour obtenir la page principale
+response = requests.get(base_url)
+page_soup = BeautifulSoup(response.text, 'html.parser')
 
-with open("index.html", "w") as f : 
-    f.write(response.text)
-soup = BeautifulSoup(response.text, 'html.parser')
+# Trouver la section des catégories
+categories_section = page_soup.find("div", class_="side_categories")
+categories_list = categories_section.find("ul").find("li").find("ul")
 
-aside = soup.find("div",class_= "side_categories") 
-categories_div = aside.find("ul").find("li").find("ul")
-# categories = [child.text.strip() for child in categories_div.children if child.name]
+# Extraire les noms des catégories et leurs liens
+category_links = categories_list.find_all("a")
+category_names = [category.text.strip() for category in category_links]
+category_urls = [base_url + link["href"] for link in category_links]
 
-images = soup.find("section" ).find_all("img")
-# article_div = soup.find("section" ).find_all("article").find_all("div")
+index = 0
+min_books_count = float('inf')  # Initialisation avec un nombre très grand pour trouver le minimum
 
-product_prod = soup.find_all("article",class_= "product_pod")
-i = 0 
-titles  = []
-for product in product_prod :
-    title= product.find("h3").find("a")["title"]
-    i += 1
-    print(title)
-    titles.append(title)
-    # print(f" {i} -  {title}")
-    
+# Boucle pour trouver la catégorie avec le moins de livres
+for i in range(len(category_names)):
+    try:
+        response = requests.get(category_urls[i])
+        soup = BeautifulSoup(response.text, 'html.parser')
+        form = soup.find("form")
+        
+        # Vérifier si le formulaire et le nombre de livres sont présents
+        if form:
+            nb_livre = form.find("strong")
+            if nb_livre:
+                nb_livre = int(nb_livre.text.strip())
+                if nb_livre < min_books_count:
+                    min_books_count = nb_livre
+                    index = i
+    except requests.exceptions.RequestException as e:
+        print(f"Erreur lors de la requête pour la catégorie {category_names[i]} : {e}")
+    except Exception as e:
+        print(f"Erreur lors du traitement de la catégorie {category_names[i]} : {e}")
+
+# Afficher le résultat
+if min_books_count != float('inf'):
+    print(f"La catégorie avec le moins de livres est '{category_names[index]}' avec {min_books_count} livres.")
+else:
+    print("Aucune catégorie n'a pu être traitée correctement.")
+
+
+   
+
+titles = [a ["title"] for a in soup.find_all('a',title = True ) ]
+# pprint(titles)
 
 
